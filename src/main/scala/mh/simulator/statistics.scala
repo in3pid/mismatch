@@ -45,7 +45,6 @@ case class MeanFitness(δmax: Double)
   }
 }
 
-
 object DistanceMethod {
   val rho = 0.3
   val deltaMax = 10

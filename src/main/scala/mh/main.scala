@@ -7,7 +7,6 @@ import mh.model._
 import mh.router._
 import mh.simulator._
 
-
 object Main extends App with SprayCanHttpServerApp {
   val router = system.actorOf(Props[RouterService], "router")
   val model = system.actorOf(Props[ModelActor], "model")

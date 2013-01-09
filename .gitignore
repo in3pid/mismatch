@@ -1,5 +1,8 @@
 .ensime*
 .*#
+.#*
+#*
+*#
 res/
 target/
 project/project/

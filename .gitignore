@@ -1,0 +1,7 @@
+.ensime*
+.*#
+res/
+target/
+project/project/
+project/target/
+

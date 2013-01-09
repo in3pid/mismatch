@@ -1,7 +1,7 @@
 package mh.simulator
 import akka.actor._
 import util.Random._
-import mh.router.Main
+import mh.Main
 import mh.model._
 
 trait SimulatorMessage {
@@ -18,13 +18,14 @@ case class AddUsers(n:Int=500) extends SimulatorMessage {
 }
 
 object Randomizer {
-  val high = 3
+  val high = 5
   val distribution = GeometricDistribution(0.3, 10)
   val transformer = LinearTransformer(distribution)
   def makeUser: User = {
     val r = Ssyk.randomCategory
-    val x = r.toLowerCase
-    val skillsForCat = (0 to high).map(_ => transformer(x)).toList
+    val base = r.toLowerCase
+    val skillsForCat = (1 to nextInt(high))
+      .map(_ => transformer(base)).toList
     User(None, cat=List(r), skill=skillsForCat)
   }
 }

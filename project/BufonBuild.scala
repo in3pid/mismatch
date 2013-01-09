@@ -14,6 +14,7 @@ object BufonBuild extends Build {
         akka,
         json4sNative,
         sprayCan,
+        sprayCaching,
         sprayRouting,
         sprayHttpx,
         sprayClient,
@@ -48,6 +49,7 @@ object Dependencies {
   val akka = "com.typesafe.akka" % "akka-actor_2.10" % "2.1.0"
   val salat = "com.novus" % "salat_2.10" % "1.9.2-SNAPSHOT"
   val sprayCan = "io.spray" % "spray-can" % "1.1-M7"
+  val sprayCaching = "io.spray" % "spray-caching" % "1.1-M7"
   val sprayRouting = "io.spray" % "spray-routing" % "1.1-M7"
   val sprayHttpx = "io.spray" % "spray-httpx" % "1.1-M7"
   val sprayClient = "io.spray" % "spray-client" % "1.1-M7"

@@ -4,6 +4,7 @@ import akka.actor._
 import org.json4s._
 import spray.routing.{RequestContext}
 
+import mh.{ Main }
 import mh.JsonExtension._
 
 // do something with the database
@@ -150,7 +151,8 @@ import mh.collection._
 
 case class CategoryCoefficients() {
   import Backer._
-  def calculate = {
+  type ResultMap = Map[Int,MultiSet[Int]]
+  def calculate: ResultMap = {
     var map = Map.empty[Int,MultiSet[Int]]
     val list = db withTransaction {
         val query = 

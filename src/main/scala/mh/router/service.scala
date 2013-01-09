@@ -4,6 +4,10 @@ import akka.actor._
 import concurrent._
 import concurrent.duration._
 import spray.routing.{HttpService, RequestContext}
+import spray.routing.directives.CachingDirectives
+import CachingDirectives._
+import spray.caching.LruCache
+import spray.caching._
 import spray.http._
 import spray.http.MediaTypes._
 import mh.model.messages._
@@ -16,6 +20,7 @@ import org.json4s.native._
 
 import mh.model._
 import mh.simulator._
+import mh.Main
 
 class RouterService extends Actor with ActorLogging with HttpService {
   def actorRefFactory = context
@@ -23,6 +28,14 @@ class RouterService extends Actor with ActorLogging with HttpService {
     future { p() } map { m => HttpResponse(entity = HttpEntity(m)) }
   val routes =
     get {
+      path("test") {
+        cache(routeCache()) {
+          complete {
+            Thread.sleep(10*1000)
+            "test"
+          }
+        }
+      } ~
       path("stop") {
         complete {
           Main.system.scheduler.scheduleOnce(Duration(1, "sec")) {

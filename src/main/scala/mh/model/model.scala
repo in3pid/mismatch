@@ -1,5 +1,6 @@
 package mh.model
 
+import concurrent.Promise
 import akka.actor._
 import org.json4s._
 import spray.routing.{RequestContext}
@@ -12,10 +13,27 @@ trait ModelMessage {
   def commit: Unit // parent scope sets transaction
 }
 
+
+/** 
+  * Encapsulate a database transaction.
+  *  usage: db withTransaction { Transaction.apply }
+  *  model will set promise accept to function value
+  */
+trait Transaction {
+  type T
+  def promise: Promise[T]
+  def commit: Unit
+}
+
 case class User(id: Option[Int]=None, cat: List[String], skill: List[String])
+
 
 import slick.driver.MySQLDriver.simple._
 import Database.threadLocalSession
+
+
+/* Schema */
+
 
 object Users extends Table[(Option[Int])]("users") {
   import Backer._
@@ -37,6 +55,7 @@ object Cats extends Table[(Int, String)]("cats") {
   def tag = column[String]("tag")
   def * = id ~ tag
   def fields = tag
+  def autoIncFields = tag returning id
 
   def exists(tag: String): Boolean = db withTransaction {
     0 < Query(Cats).where(_.tag===tag).list.size
@@ -54,6 +73,7 @@ object Skills extends Table[(Int, String)]("skills") {
   def tag = column[String]("tag")
   def * = id ~ tag
   def fields = tag
+  def autoIncFields = tag returning id
 
   def exists(tag: String): Boolean = db withTransaction {
     0 < Query(Skills).where(_.tag===tag).list.size
@@ -91,47 +111,6 @@ object CatMap extends Table[(Int, Int, Int)]("catmap") {
   }
 }
 
-
-case class UpdateUser(user: User) extends ModelMessage {
-  def commit {
-    val uid = 
-      if (!Users.exists(user)) Users.autoInc.insert(user.id)
-      else user.id.get
-
-    user.cat foreach { s =>
-      if (!Cats.exists(s)) Cats.fields.insert(s)
-    }
-
-    user.skill foreach { s =>
-      if (!Skills.exists(s)) Skills.fields.insert(s)
-    }
-
-    val catIds = user.cat map Cats.idFor
-    catIds foreach { catId =>
-      if (!CatMap.exists(uid, catId))
-        CatMap.fields.insert(uid, catId)
-    }
-
-    val skillIds = user.skill map Skills.idFor
-    skillIds foreach { skillId =>
-      if (!SkillMap.exists(uid, skillId))
-        SkillMap.fields.insert(uid, skillId)
-    }
-  }
-}
-
-
-case class ResetModel() extends ModelMessage {
-  import Backer._
-  def commit {
-    val ddl =  Users.ddl ++ Cats.ddl ++
-      Skills.ddl ++ CatMap.ddl ++ SkillMap.ddl
-    ddl.drop
-    ddl.create
-  }
-}
-
-
 object Backer {
   val db: Database = Database.forURL("jdbc:mysql://localhost/model?user=db", driver = "com.mysql.jdbc.Driver")
   def skillsForUser(userId: Int) =
@@ -145,7 +124,48 @@ class ModelActor extends Actor with ActorLogging {
   def receive = {
     case msg: ModelMessage => db withTransaction { msg.commit }
     case msg: Transaction => 
-      val reply = db withTransaction { msg.apply }
-      msg.promise success reply
+      db withTransaction { msg.commit }
+  }
+}
+
+
+/* Messags */
+
+
+
+case class UpdateUser(user: User) extends ModelMessage {
+  def commit {
+    val uid = 
+      if (!Users.exists(user)) Users.autoInc.insert(user.id)
+      else user.id.get
+
+    val catIds = user.cat map { s =>
+      if (!Cats.exists(s)) Cats.autoIncFields.insert(s)
+      else Cats.idFor(s)
+    }
+
+    val skillIds = user.skill map { s =>
+      if (!Skills.exists(s)) Skills.autoIncFields.insert(s)
+      else Skills.idFor(s)
+    }
+
+    catIds foreach { catId =>
+      if (!CatMap.exists(uid, catId)) CatMap.fields.insert(uid, catId)
+    }
+
+    skillIds foreach { skillId =>
+      if (!SkillMap.exists(uid, skillId))
+        SkillMap.fields.insert(uid, skillId)
+    }
+  }
+}
+
+
+case class ResetModel() extends ModelMessage {
+  def commit {
+    val ddl = Users.ddl ++ Cats.ddl ++
+      Skills.ddl ++ CatMap.ddl ++ SkillMap.ddl
+    ddl.drop
+    ddl.create
   }
 }

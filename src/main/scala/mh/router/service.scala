@@ -42,21 +42,21 @@ class RouterService extends Actor with ActorLogging with HttpService {
           "Sent reset message to model."
         }
       } ~
-      path("simulator/add-users") {
+      path("simulate/add-users") {
         complete {
           Main.simulator ! AddUsers()
           "Sent start message to simulator."
         }
       } ~
-      path("projector/project-ranks" / IntNumber) { catId =>
-        complete { 
-          val p = ProjectRanks(catId)
+      path("project/ranks" / PathElement) { s =>
+        complete {
+          val p = GetRanks(s)
           Main.projector ! p
-          p.response map (write(_))
+          p.response.map {
+            case list: List[Rank[String]] =>
+              write(list)
+          }
         }
-      } ~
-      path("projector/ranks") {
-        rc => rc.complete("ok")
       }
     } ~
     (post | parameter('method ! "post")) {

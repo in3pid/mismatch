@@ -144,32 +144,8 @@ class ModelActor extends Actor with ActorLogging {
   import Backer._
   def receive = {
     case msg: ModelMessage => db withTransaction { msg.commit }
-  }
-}
-
-import mh.collection._
-
-case class CategoryCoefficients() {
-  import Backer._
-  type ResultMap = Map[Int,MultiSet[Int]]
-  def calculate: ResultMap = {
-    var map = Map.empty[Int,MultiSet[Int]]
-    val list = db withTransaction {
-        val query = 
-          for { skillMap <- SkillMap
-                catMap <- CatMap
-                if catMap.userId === skillMap.userId }
-          yield (catMap.catId, skillMap.skillId)
-        query.list
-      }
-    list foreach { elt =>
-      elt match {
-        case (catId, skillId) =>
-          val t = map.getOrElse(catId, new MultiSet[Int])
-          val m = t + skillId
-          map += (catId -> m)
-      }
-    }
-    map
+    case msg: Transaction => 
+      val reply = db withTransaction { msg.apply }
+      msg.promise success reply
   }
 }

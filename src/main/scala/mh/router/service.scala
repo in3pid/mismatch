@@ -24,20 +24,10 @@ import mh.Main
 
 class RouterService extends Actor with ActorLogging with HttpService {
   def actorRefFactory = context
-  def futureWrap(p: Projection): Future[HttpResponse] =
-    future { p() } map { m => HttpResponse(entity = HttpEntity(m)) }
-  val routes =
+  val route =
     get {
-      path("test") {
-        cache(routeCache()) {
-          complete {
-            Thread.sleep(10*1000)
-            "test"
-          }
-        }
-      } ~
       path("stop") {
-        complete {
+        complete { 
           Main.system.scheduler.scheduleOnce(Duration(1, "sec")) {
             Main.system.shutdown()
           }
@@ -45,7 +35,7 @@ class RouterService extends Actor with ActorLogging with HttpService {
         }
       } ~
       path("model/reset") {
-        complete {
+        complete { 
           Main.model ! ResetModel()
           "Sent reset message to model."
         }
@@ -56,8 +46,15 @@ class RouterService extends Actor with ActorLogging with HttpService {
           "Sent start message to simulator."
         }
       } ~
-      path("projector/project-ranks") {
-        rc => Main.projector ! ProjectRanks(rc)
+      path("projector/project-ranks" / IntNumber) { catId =>
+        complete { 
+          val p = ProjectRanks(catId)
+          Main.projector ! p
+          p.response map (_.toString)
+        }
+      } ~
+      path("projector/ranks") {
+        rc => rc.complete("ok")
       }
     } ~
     (post | parameter('method ! "post")) {
@@ -70,10 +67,5 @@ class RouterService extends Actor with ActorLogging with HttpService {
         }
       }
     }
-
-  def completeContexts: Actor.Receive = {
-    case ServiceMessage(msg: Any, rc) =>
-      rc.complete(msg.toString)
-  }
-  def receive = runRoute(routes) orElse completeContexts
+  def receive = runRoute(route)
 }

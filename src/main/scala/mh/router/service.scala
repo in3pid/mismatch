@@ -17,12 +17,14 @@ import mh.JsonExtension._
 
 import org.json4s._
 import org.json4s.native._
+import org.json4s.native.Serialization._
 
 import mh.model._
 import mh.simulator._
 import mh.Main
 
 class RouterService extends Actor with ActorLogging with HttpService {
+  implicit val formats = DefaultFormats
   def actorRefFactory = context
   val route =
     get {
@@ -50,7 +52,7 @@ class RouterService extends Actor with ActorLogging with HttpService {
         complete { 
           val p = ProjectRanks(catId)
           Main.projector ! p
-          p.response map (_.toString)
+          p.response map (write(_))
         }
       } ~
       path("projector/ranks") {

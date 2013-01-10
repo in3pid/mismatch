@@ -69,8 +69,10 @@ case class CatSkillsTransaction(
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
+case class Rank(tag:Int, weight: Double)
+
 case class ProjectRanks(catId: Int, n:Int=10) extends ProjectorMessage {
-  val promise = Promise[List[(Int,Double)]]
+  val promise = Promise[List[Rank]]
   val response = promise.future
   def commit {
     val p = Promise[CatSkills]
@@ -81,8 +83,8 @@ case class ProjectRanks(catId: Int, n:Int=10) extends ProjectorMessage {
           (map.keys map { key =>
              val a = (value & map(key)).cardinality.toDouble
              val b = (value | map(key)).cardinality.toDouble
-             (key, a/b)
-          }).toList.sortWith((a, b) => a._2 > b._2).take(n)
+             Rank(key, a/b)
+          }).toList.sortWith((a, b) => a.weight > b.weight).take(n)
         }
         promise success result(catId)
     }

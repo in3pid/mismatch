@@ -1,10 +1,12 @@
 package mh.collection
-import collection.{ Set, SetLike }
+import collection._
 
 case class MultiSet[A](map: Map[A, Int]) extends Set[A] {
+  override def empty = new MultiSet(Map.empty[A, Int])
   def this() = this(Map.empty[A, Int])
+
   def contains(key: A): Boolean = map contains key
-  def weight(key: A) = map(key)
+  def weight(key: A) = map.getOrElse(key, 0)
   def cardinality = map.values.sum
   def iterator: Iterator[A] = map.keys.iterator
   def +(key: A): MultiSet[A] = {
@@ -38,5 +40,23 @@ case class MultiSet[A](map: Map[A, Int]) extends Set[A] {
       (r, key) => r + (key -> math.min(weight(key), that.weight(key)))
     }
     MultiSet(m)
+  }
+
+  override def equals(that: Any) : Boolean = that match {
+    case rhs@ MultiSet(thatMap) =>
+      (map.keySet == thatMap.keySet) &&
+      map.keys.forall { key => weight(key) == rhs.weight(key) }
+  }
+
+  override def subsetOf(that: GenSet[A]): Boolean = that match {
+    case rhs@ MultiSet(thatMap) =>
+      (map.keySet subsetOf thatMap.keySet) &&
+      map.keys.forall { key => weight(key) <= rhs.weight(key) }
+  }
+
+  def overlap(that: MultiSet[A]): Double = {
+    val a = (this & that).cardinality.toDouble
+    val b = (this | that).cardinality.toDouble
+    a / b
   }
 }

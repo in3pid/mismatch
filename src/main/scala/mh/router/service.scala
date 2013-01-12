@@ -1,6 +1,7 @@
 package mh.router
 
 import akka.actor._
+import akka.pattern._
 import concurrent._
 import concurrent.duration._
 import spray.routing.{HttpService, RequestContext}
@@ -25,6 +26,7 @@ import mh.Main
 
 class RouterService extends Actor with ActorLogging with HttpService {
   implicit val formats = DefaultFormats
+  implicit val timeout = akka.util.Timeout(30 seconds)
   def actorRefFactory = context
   val route =
     get {
@@ -48,14 +50,11 @@ class RouterService extends Actor with ActorLogging with HttpService {
           "Sent start message to simulator."
         }
       } ~
-      path("project/ranks" / PathElement) { s =>
+      path("ranks" / PathElement) { elt =>
         complete {
-          val p = GetRanks(s)
-          Main.projector ! p
-          p.response.map {
-            case list: List[Rank[String]] =>
-              write(list)
-          }
+          (Main.projector ? GetRanks(elt))
+            .mapTo[List[Rank[String]]]
+            .map { write(_) }
         }
       }
     } ~

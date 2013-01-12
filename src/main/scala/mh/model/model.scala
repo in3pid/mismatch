@@ -1,6 +1,6 @@
 package mh.model
 
-import concurrent.Promise
+import concurrent._
 import akka.actor._
 import org.json4s._
 import spray.routing.{RequestContext}
@@ -13,16 +13,32 @@ trait ModelMessage {
   def commit: Unit // parent scope sets transaction
 }
 
+trait NewModelMessage {
+  type T
+  def commit: T
+}
+
+trait NewTransaction {
+  type T
+  def commit: T
+}
 
 /** 
   * Encapsulate a database transaction.
-  *  usage: db withTransaction { Transaction.apply }
-  *  model will set promise accept to function value
   */
 trait Transaction {
+  // reply type
   type T
-  def promise: Promise[T]
+  // will be executed in a transaction by the model
   def commit: Unit
+  // a promise to reply
+  def promise: Promise[T]
+  // hook a transformation on the response
+  def bind[A](f: PartialFunction[T,A])
+          (implicit executor: ExecutionContext): Transaction = {
+    promise.future.onSuccess(f)
+    this
+  }
 }
 
 case class User(id: Option[Int]=None, cat: List[String], skill: List[String])
@@ -125,13 +141,13 @@ class ModelActor extends Actor with ActorLogging {
     case msg: ModelMessage => db withTransaction { msg.commit }
     case msg: Transaction => 
       db withTransaction { msg.commit }
+    case msg: NewTransaction =>
+      val response = db withTransaction { msg.commit }
+      sender ! response
   }
 }
 
-
-/* Messags */
-
-
+/* Messages */
 
 case class UpdateUser(user: User) extends ModelMessage {
   def commit {
@@ -159,7 +175,6 @@ case class UpdateUser(user: User) extends ModelMessage {
     }
   }
 }
-
 
 case class ResetModel() extends ModelMessage {
   def commit {

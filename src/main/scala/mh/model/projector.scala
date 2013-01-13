@@ -15,22 +15,22 @@ import spray.caching.{LruCache, Cache}
 import spray.util._
 
 import mh.Main
+import mh.model.Backer.{db => database}
+import mh.Implicit._
 
 trait ProjectorMessage {
   def commit: Unit
 }
-
-case class Rank[A](tag: A, weight: Double)
-case class CatSkillsNamed(map: Map[String, MultiSet[String]])
-
 trait Projection {
   type T
   def commit: T
 }
 
+case class Rank[A](tag: A, weight: Double)
+case class CatSkills(map: Map[String, MultiSet[String]])
 
-case class NewCatSkillsNamedTr() extends NewTransaction {
-  type T = CatSkillsNamed
+case class CatSkillsTr() extends NewTransaction {
+  type T = CatSkills
   val query =
     for { skillMap <- SkillMap
           catMap <- CatMap if catMap.userId is skillMap.userId
@@ -38,9 +38,9 @@ case class NewCatSkillsNamedTr() extends NewTransaction {
           skill <- Skills if skill.id is skillMap.skillId }
     yield (cat.tag, skill.tag)
 
-  def commit = {
+  def commit = database withSession {
     var map: Map[String, MultiSet[String]] = Map.empty
-    query.list foreach { elt =>
+    query foreach { elt =>
       elt match {
         case (cat, skill) =>
           val t = map.getOrElse(cat, new MultiSet[String])
@@ -48,26 +48,38 @@ case class NewCatSkillsNamedTr() extends NewTransaction {
           map += (cat -> m)
       }
     }
-    CatSkillsNamed(map)
+    CatSkills(map)
   }
 }
 
-case class GetRanks(cat: String, n:Int=10)
 
-class Projector extends Actor with ActorLogging {
-  implicit val timeout = akka.util.Timeout(30 seconds)
-  def receive = {
-    case msg: ProjectorMessage =>
-      log.info(msg.toString)
-      msg.commit
-    case GetRanks(cat, n) =>
-      ask(Main.model, NewCatSkillsNamedTr()) map {
-        case CatSkillsNamed(in) =>
+import scala.concurrent.ExecutionContext.Implicits.global
+
+case class GetRanks(cat: String, n:Int=10) {
+  def commit: Future[List[Rank[String]]] = {
+      ask(Main.model, CatSkillsTr()) map {
+        case CatSkills(in) =>
           in.mapValues { value =>
             (in.keys.map { key => Rank(key, value overlap in(key)) })
             .toList.sortWith((a, b) => a.weight > b.weight).take(n)
           }.getOrElse(cat, Nil)
-      } pipeTo sender
+      }
+  }
+}
+
+class Projector extends Actor with ActorLogging {
+  def receive = {
+    case msg: ProjectorMessage =>
+      log.info(msg.toString)
+      msg.commit
+    // case GetRanks(cat, n) =>
+    //   ask(Main.model, CatSkillsTr()) map {
+    //     case CatSkills(in) =>
+    //       in.mapValues { value =>
+    //         (in.keys.map { key => Rank(key, value overlap in(key)) })
+    //         .toList.sortWith((a, b) => a.weight > b.weight).take(n)
+    //       }.getOrElse(cat, Nil)
+    //   } pipeTo sender
     case x@ _ => log.warning("unhandled message: " + x)
   }
 }

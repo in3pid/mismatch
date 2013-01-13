@@ -23,15 +23,15 @@ import org.json4s.native.Serialization._
 import mh.model._
 import mh.simulator._
 import mh.Main
+import mh.Implicit._
 
 class RouterService extends Actor with ActorLogging with HttpService {
   implicit val formats = DefaultFormats
-  implicit val timeout = akka.util.Timeout(30 seconds)
   def actorRefFactory = context
   val route =
     get {
       path("stop") {
-        complete { 
+        complete {
           Main.system.scheduler.scheduleOnce(Duration(1, "sec")) {
             Main.system.shutdown()
           }
@@ -39,7 +39,7 @@ class RouterService extends Actor with ActorLogging with HttpService {
         }
       } ~
       path("model/reset") {
-        complete { 
+        complete {
           Main.model ! ResetModel()
           "Sent reset message to model."
         }
@@ -50,9 +50,9 @@ class RouterService extends Actor with ActorLogging with HttpService {
           "Sent start message to simulator."
         }
       } ~
-      path("ranks" / PathElement) { elt =>
+      path("project/ranks" / PathElement) { elt =>
         complete {
-          (Main.projector ? GetRanks(elt))
+          GetRanks(elt).commit
             .mapTo[List[Rank[String]]]
             .map { write(_) }
         }

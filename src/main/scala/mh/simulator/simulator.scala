@@ -24,18 +24,18 @@ object Randomizer {
   def makeUser: User = {
     val r = Ssyk.randomCategory
     val base = r.toLowerCase
-    val skillsForCat = (1 to nextInt(high))
+    val skills = (1 to nextInt(high))
       .map(_ => transformer(base)).toList
-    User(None, cat=List(r), skill=skillsForCat)
+    User(None, cat=List(r), skill=skills)
   }
 }
 
 class Simulator extends Actor with ActorLogging {
   def receive = {
-    case msg: SimulatorMessage => 
+    case msg: SimulatorMessage =>
       log.info("Simulator: " + msg + " committing...")
       msg.commit
-      log.info("Simulator done.") 
+      log.info("Simulator done.")
     case x@ _ => log.info(x.toString)
   }
 }

@@ -4,18 +4,8 @@ import util.Random._
 import mh.Main
 import mh.model._
 
-trait SimulatorMessage {
-  def commit: Unit
-}
 
-case class AddUsers(n:Int=500) extends SimulatorMessage {
-  def commit {
-    (1 to n) foreach { _ =>
-      val user = Randomizer.makeUser
-      Main.modelRouter ! user
-    }
-  }
-}
+case class AddUsers(n:Int=500)
 
 object Randomizer {
   val high = 5
@@ -31,11 +21,16 @@ object Randomizer {
 }
 
 class Simulator extends Actor with ActorLogging {
+  def addUsers(n:Int=500) = {
+    (1 to n) foreach { _ =>
+      val user = Randomizer.makeUser
+      Main.modelRouter ! user
+    }
+  }
+
   def receive = {
-    case msg: SimulatorMessage =>
-      log.info("Simulator: " + msg + " committing...")
-      msg.commit
-      log.info("Simulator done.")
+    case AddUsers(n) =>
+      sender ! addUsers(n)
     case x@ _ => log.info(x.toString)
   }
 }

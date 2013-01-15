@@ -2,13 +2,14 @@ package mh.model
 
 import concurrent._
 import akka.actor._
-import org.json4s._
-import spray.routing.{RequestContext}
+import slick.driver.MySQLDriver.simple._
+import Database.threadLocalSession
 
 import mh.{ Main }
+import mh.Implicit._ // timeout
 import mh.collection._
-import mh.Implicit._
 
+/** Messages */
 
 case class Rank[A](tag: A, weight: Double)
 case class CatSkills(map: Map[String, MultiSet[String]])
@@ -20,8 +21,6 @@ case class User(id: Option[Int]=None, cat: List[String], skill: List[String])
 case class GetRanks(cat: String, n:Int=10)
 
 
-import slick.driver.MySQLDriver.simple._
-import Database.threadLocalSession
 
 object Backer {
   val db: Database = Database.forURL(

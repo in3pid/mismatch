@@ -57,7 +57,9 @@ class RouterService extends Actor with ActorLogging with HttpService {
       } ~
       path("project/skills" / PathElement) { elt =>
         complete {
-          ask(Main.modelRouter, SkillsForCat(elt)).mapTo[MultiSet[String]].map(_.toString)
+          ask(Main.modelRouter, SkillsForCat(elt))
+            .mapTo[MultiSet[String]]
+            .map(_.toString)
         }
       }
     } ~

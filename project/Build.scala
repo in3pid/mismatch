@@ -9,7 +9,7 @@ object MismatchBuild extends Build {
     id = "mismatch",
     base = file("."),
     settings = buildSettings ++ List(
-      name := "Bufon",
+      name := "Mismatch",
       libraryDependencies ++= List(
         scalaTest,
         akka,

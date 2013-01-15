@@ -6,75 +6,72 @@ import org.json4s._
 import spray.routing.{RequestContext}
 
 import mh.{ Main }
-import mh.JsonExtension._
+import mh.collection._
 import mh.Implicit._
 
-// do something with the database
-trait ModelMessage {
-  def commit: Unit // parent scope sets transaction
-}
 
-trait NewModelMessage {
-  type T
-  def commit: T
-}
+case class Rank[A](tag: A, weight: Double)
+case class CatSkills(map: Map[String, MultiSet[String]])
 
-trait NewTransaction {
-  type T
-  def commit: T
-}
+case class SkillsForCat(tag: String, n: Int = 10)
 
-/**
-  * Encapsulate a database transaction.
-  */
-trait Transaction {
-  // reply type
-  type T
-  // will be executed in a transaction by the model
-  def commit: Unit
-  // a promise to reply
-  def promise: Promise[T]
-  // hook a transformation on the response
-  def bind[A](f: PartialFunction[T,A])
-          (implicit executor: ExecutionContext): Transaction = {
-    promise.future.onSuccess(f)
-    this
-  }
-}
-
+case class ResetModel()
 case class User(id: Option[Int]=None, cat: List[String], skill: List[String])
+case class GetRanks(cat: String, n:Int=10)
 
 
 import slick.driver.MySQLDriver.simple._
 import Database.threadLocalSession
 
-
-/* Schema */
-
-
 object Backer {
-  val db: Database = Database.forURL("jdbc:mysql://localhost/model?user=db", driver = "com.mysql.jdbc.Driver")
-  def skillsForUser(userId: Int) =
-    for (us <- SkillMap;
-         s <- Skills if s.id == us.skillId)
-      yield s.tag
+  val db: Database = Database.forURL(
+    "jdbc:mysql://localhost/model?user=db",
+    driver = "com.mysql.jdbc.Driver")
 }
 
-class ModelActor extends Actor with ActorLogging {
-  import Backer._
-  def receive = {
-    case msg: ModelMessage => db withTransaction { msg.commit }
-    case msg: Transaction => db withTransaction { msg.commit }
-    case msg: NewTransaction =>
-      val response = db withTransaction { msg.commit }
-      sender ! response
+
+class ModelWorker extends Actor with ActorLogging {
+  import Backer.db
+
+  val querySkillsForCats =
+    for {
+      skillMap <- SkillMap
+      catMap <- CatMap if catMap.userId is skillMap.userId
+      cat <- Cats if cat.id is catMap.catId
+      skill <- Skills if skill.id is skillMap.skillId }
+    yield (cat.tag, skill.tag)
+
+  def mapCatSkills() = db.withSession {
+    var map: Map[String, MultiSet[String]] = Map.empty
+    querySkillsForCats foreach { elt =>
+      elt match {
+        case (cat, skill) =>
+          val t = map.getOrElse(cat, new MultiSet[String])
+          val m = t + skill
+          map += (cat -> m)
+      }
+    }
+    map
   }
-}
 
-/* Messages */
+  def skillsForCat(cat: String) = mapCatSkills()(cat)
 
-case class UpdateUser(user: User) extends ModelMessage {
-  def commit {
+  def getRanks(cat: String, n: Int) = {
+    val in = mapCatSkills()
+    in.mapValues { value =>
+      (in.keys.map { key => Rank(key, value overlap in(key)) })
+        .toList.sortWith((a, b) => a.weight > b.weight).take(n)
+    }.getOrElse(cat, Nil)
+  }
+
+  def resetModel() = db.withSession {
+    val ddl = Users.ddl ++ Cats.ddl ++
+      Skills.ddl ++ CatMap.ddl ++ SkillMap.ddl
+    ddl.drop
+    ddl.create
+  }
+
+  def updateUser(user: User) = db.withSession {
     val uid =
       if (!Users.exists(user)) Users.autoInc.insert(user.id)
       else user.id.get
@@ -98,13 +95,16 @@ case class UpdateUser(user: User) extends ModelMessage {
         SkillMap.fields.insert(uid, skillId)
     }
   }
-}
 
-case class ResetModel() extends ModelMessage {
-  def commit {
-    val ddl = Users.ddl ++ Cats.ddl ++
-      Skills.ddl ++ CatMap.ddl ++ SkillMap.ddl
-    ddl.drop
-    ddl.create
+  def receive = {
+    case SkillsForCat(cat, n) =>
+      sender ! skillsForCat(cat)
+    case user: User =>
+      sender ! updateUser(user)
+    case ResetModel() =>
+      sender ! resetModel()
+    case GetRanks(cat, n) =>
+      sender ! getRanks(cat, n)
   }
+
 }

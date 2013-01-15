@@ -11,10 +11,6 @@ import spray.caching.LruCache
 import spray.caching._
 import spray.http._
 import spray.http.MediaTypes._
-import mh.model.messages._
-
-// string or json --> bson
-import mh.JsonExtension._
 
 import org.json4s._
 import org.json4s.native._
@@ -24,6 +20,8 @@ import mh.model._
 import mh.simulator._
 import mh.Main
 import mh.Implicit._
+
+import mh.collection._
 
 class RouterService extends Actor with ActorLogging with HttpService {
   implicit val formats = DefaultFormats
@@ -40,7 +38,7 @@ class RouterService extends Actor with ActorLogging with HttpService {
       } ~
       path("model/reset") {
         complete {
-          Main.model ! ResetModel()
+          Main.modelRouter ! ResetModel()
           "Sent reset message to model."
         }
       } ~
@@ -52,18 +50,23 @@ class RouterService extends Actor with ActorLogging with HttpService {
       } ~
       path("project/ranks" / PathElement) { elt =>
         complete {
-          GetRanks(elt).commit
-            .mapTo[List[Rank[String]]]
-            .map { write(_) }
+          ask(Main.modelRouter, GetRanks(elt))
+          .mapTo[List[Rank[String]]]
+          .map { write(_) }
+        }
+      } ~
+      path("project/skills" / PathElement) { elt =>
+        complete {
+          ask(Main.modelRouter, SkillsForCat(elt)).mapTo[MultiSet[String]].map(_.toString)
         }
       }
     } ~
     (post | parameter('method ! "post")) {
       path("update") { rc =>
         rc.complete {
-          val json: JValue = rc.request.entity.asString
+          val json: JValue = JsonParser.parse(rc.request.entity.asString)
           val user = json.extract[User]
-          Main.model ! UpdateUser(user)
+          Main.modelRouter ! user
           "Sent " + user
         }
       }

@@ -11,8 +11,8 @@ trait SimulatorMessage {
 case class AddUsers(n:Int=500) extends SimulatorMessage {
   def commit {
     (1 to n) foreach { _ =>
-      val u = Randomizer.makeUser
-      Main.model ! UpdateUser(u)
+      val user = Randomizer.makeUser
+      Main.modelRouter ! user
     }
   }
 }

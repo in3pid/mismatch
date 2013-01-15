@@ -20,14 +20,11 @@ case class ResetModel()
 case class User(id: Option[Int]=None, cat: List[String], skill: List[String])
 case class GetRanks(cat: String, n:Int=10)
 
-
-
 object Backer {
   val db: Database = Database.forURL(
     "jdbc:mysql://localhost/model?user=db",
     driver = "com.mysql.jdbc.Driver")
 }
-
 
 class ModelWorker extends Actor with ActorLogging {
   import Backer.db

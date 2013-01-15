@@ -1,9 +1,8 @@
-package mh.simulator
+package mh.mismatch.simulator
 import akka.actor._
 import util.Random._
-import mh.Main
-import mh.model._
-
+import mh.mismatch.Main
+import mh.mismatch.model._
 
 case class AddUsers(n:Int=500)
 

@@ -1,4 +1,4 @@
-package mh.model
+package mh.mismatch.model
 
 import slick.driver.MySQLDriver.simple._
 import Database.threadLocalSession

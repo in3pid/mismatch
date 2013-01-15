@@ -1,12 +1,12 @@
-package mh.model
+package mh.mismatch.model
 
 import concurrent._
 import akka.actor._
 import slick.driver.MySQLDriver.simple._
 import Database.threadLocalSession
 
-import mh.{ Main }
-import mh.Implicit._ // timeout
+import mh.mismatch.{ Main }
+import mh.mismatch.Implicit._ // timeout
 import mh.collection._
 
 /** Messages */

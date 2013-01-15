@@ -1,4 +1,4 @@
-package mh.simulator
+package mh.mismatch.simulator
 
 import scala.math._
 import scala.util.Random._

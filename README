@@ -1,2 +1,9 @@
-The frontend. The backend. The everything.
+Mismatch, a precursor.
 
+TODO
+* Modularize the model message handling.
+* Cache responses.
+* Ensure proper responses (catch errors etc).
+* Externalize configuration.
+* Load balancing actors for the model.
+* Lots of doc?!
